@@ -166,4 +166,64 @@ client.on("chat", function(channel, user, message, self) {
         client.say(keys.twitchName, "Betting has now closed");
     }
     
+    //Command to send a bet on the current fight
+    if (messageArray[0] === "!bet") {
+        if (bets) {
+
+            //SETUP
+            requestOptions.url = "https://api.twitch.tv/helix/users" + "?login=" + user.username;
+            request.get(requestOptions, (error, response, data, userID, obj) => {
+                if (error) throw error;
+                obj = JSON.parse(data);
+                userID = obj.data[0].id;
+
+                requestOptions.url = "https://api.streamelements.com/kappa/v2/points/" + keys.channelId + "/" + user.username;
+                request.get(requestOptions, (error, response, data, numPoints, obj) => {
+                    if (error) throw error;
+                    obj = JSON.parse(data);
+                    numPoints = obj.points;
+
+                    //Error Catching
+                    if (messageArray[1] === undefined) {
+                        client.say(keys.twitchName, "Please enter how much you would like to wager");
+                        return;
+                    } else if (messageArray[2] === undefined) {
+                        client.say(keys.twitchName, "Please put either 'win' or 'lose' after your bet amount");
+                        return;
+                    }
+                    if (numPoints < messageArray[1]) {
+                        client.say(keys.twitchName, "Bet failed. You do not have enough points");
+                        return;
+                    } else if (messageArray[1] === 0) {
+                        client.say(keys.twitchName, "A bet must be greater than 0");
+                        return;
+                    }
+                    else if(messageArray[1].toLowerCase() === "all"){
+                        messageArray[1] = numPoints;
+                    }
+
+
+                    //Conditional and querys
+                    if (messageArray[2].toLowerCase() === "win") {
+                        var insertSQL = "INSERT INTO pointstable (idColumn,betPoints) VALUES (" + userID + "," + messageArray[1] + ") ON DUPLICATE KEY UPDATE betPoints = " + messageArray[1];
+                        con.query(insertSQL, function(error, result) {
+                            if (error) throw error;
+                            console.log(user.username + " inserted " + messageArray[1] + " into table");
+                        });
+                        client.say(keys.twitchName, user.username + " bet successful.");
+                    } else if (messageArray[2].toLowerCase() === "lose") {
+                        messageArray[1] = messageArray[1] * -1;
+                        var insertSQL = "INSERT INTO pointstable (idColumn,betPoints) VALUES (" + userID + "," + messageArray[1] + ") ON DUPLICATE KEY UPDATE betPoints = " + messageArray[1];
+                        con.query(insertSQL, function(error, result) {
+                            if (error) throw error;
+                            console.log(user.username + " inserted " + messageArray[1] + " into table");
+                        });
+                        client.say(keys.twitchName, user.username + " bet successful.");
+                    }
+                });
+            });
+        } else {
+            client.say(keys.twitchName, "Betting is not open at this time.");
+        }
+    }
 });
