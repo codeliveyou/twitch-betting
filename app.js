@@ -226,4 +226,37 @@ client.on("chat", function(channel, user, message, self) {
             client.say(keys.twitchName, "Betting is not open at this time.");
         }
     }
+
+    //Removes the current bet of a specified user
+    if (messageArray[0] === "!betremove") {
+        if (messageArray[1] === undefined)
+            messageArray[1] = user.username;
+        cleanString(messageArray);
+        if (messageArray[1] !== user.username) {
+            if (!user.mod && user.username !== keys.twitchName)
+                return;
+        }
+        cleanString(messageArray);
+
+        requestOptions.url = "https://api.twitch.tv/helix/users" + "?login=" + messageArray[1];
+        request.get(requestOptions, (error, response, data, userID, obj) => {
+            if (error) throw error;
+            obj = JSON.parse(data);
+            userID = obj.data[0].id;
+
+            findSQL = "SELECT betPoints FROM pointstable WHERE idColumn = " + userID;
+            con.query(findSQL, function(error, result, bPoints) {
+                if (result[0] === undefined || result[0].betPoints === 0)
+                    client.say(keys.twitchName, messageArray[1] + " does not have a bet to remove");
+                else {
+                    var removeSQL = "UPDATE pointstable SET betPoints = 0 WHERE idColumn =" + userID;
+                    con.query(removeSQL, function(error, result) {
+                        if (error) throw error;
+                        client.say(keys.twitchName, messageArray[1] + " your bet has been removed");
+                        console.log("Removal successful");
+                    });
+                }
+            });
+        });
+    }
 });
